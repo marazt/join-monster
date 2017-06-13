@@ -3,9 +3,34 @@ import { flatMap } from 'lodash'
 import AliasNamespace from '../alias-namespace'
 import { wrap } from '../util'
 import deprecate from 'deprecate'
-import { getArgumentValues } from 'graphql/execution/values'
 
 const TABLE_TYPES = [ 'GraphQLObjectType', 'GraphQLUnionType', 'GraphQLInterfaceType' ]
+
+// the arguments just come in as strings.
+// if they are literals, parse them,
+// if they are variable names, look them up
+function parseArgValue(value, variableValues) {
+  if (value.kind === 'Variable') {
+    const variableName = value.name.value
+    return variableValues[variableName]
+  }
+
+  switch(value.kind) {
+    case 'IntValue':
+      return parseInt(value.value)
+    case 'FloatValue':
+      return parseFloat(value.value)
+    case 'ListValue':
+      return value.values.map(value => parseArgValue(value, variableValues))
+    case 'ObjectValue':
+      return value.fields.map(value => parseArgValue(value, variableValues))
+    case 'ObjectField':
+      return {name:value.name.value,value:value.value.value}
+    default:
+      return value.value
+  }
+}
+
 
 export function queryASTToSqlAST(resolveInfo, options, context) {
   // this is responsible for all the logic regarding creating SQL aliases
@@ -64,7 +89,13 @@ export function populateASTNode(queryASTNode, parentTypeNode, sqlASTNode, namesp
   // the actual type might be wrapped in a GraphQLNonNull type
   let gqlType = stripNonNullType(field.type)
 
-  sqlASTNode.args = getArgumentValues(field, queryASTNode, this.variableValues)
+  // add the arguments that were passed, if any.
+  if (queryASTNode.arguments.length) {
+    const args = sqlASTNode.args = {}
+    for (let arg of queryASTNode.arguments) {
+      args[arg.name.value] = parseArgValue(arg.value, this.variableValues)
+    }
+  }
 
   // if list then mark flag true & get the type inside the GraphQLList container type
   if (gqlType.constructor.name === 'GraphQLList') {
