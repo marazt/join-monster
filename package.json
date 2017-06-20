@@ -6,9 +6,6 @@
   "engines": {
     "node": ">=6.0.0"
   },
-  "files": [
-    "dist/"
-  ],
   "scripts": {
     "build": "rm -rf dist && babel src --no-comments --out-dir dist",
     "watch": "rm -rf dist && babel src --watch --source-maps true --out-dir dist",
@@ -28,8 +25,7 @@
     "prepublish": "in-publish && /bin/sh ./scripts/prepublish.sh && npm run build || not-in-publish",
     "preversion": ". ./scripts/checkgit.sh && npm test",
     "db-build": "TZ=UTC babel-node test-api/data/build.js",
-    "db-shell": "sqlite3 --column --header test-api/data/db/demo-data.sl3",
-    "postinstall": "npm run build"
+    "db-shell": "sqlite3 --column --header test-api/data/db/demo-data.sl3"
   },
   "ava": {
     "concurrency": 10,
